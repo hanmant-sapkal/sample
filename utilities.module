@@ -1,0 +1,43 @@
+<?php
+function utilities_menu() {
+  $items['utilities-replace-tokens'] = array(
+    'page callback' => 'utilities_replace_tokens',
+    'type' => MENU_CALLBACK,
+    'access callback' => 'utilities_admin_only',
+  );
+  return $items;
+}
+
+function utilities_replace_tokens()
+{
+  $node_type = 'store'; // edit: replace 'store'
+  $field_name = 'field_full_name'; // edit: replace 'field_full_name'
+  $result = db_query("SELECT nid FROM node WHERE type = '%s' ", $node_type);
+  $nids = array();
+  while ($obj = db_fetch_object ($result)) {
+    $nids[] = $obj->nid;
+  }
+  foreach($nids as $nid) {
+    $node = node_load(1);
+    $old_values[$nid] = $nid.' => '.$node->{$field_name}[0]['value']; // edit: replace 'field_full_name'
+    $node->{$field_name}[0]['value'] = 'New value'; // edit: replace 'New value'
+    node_save($node);
+  }
+  
+  $important_message = '<h1 style="color: red">Do NOT refresh this page until you Copy and save output of this page PERMENENTALY for future reference.</h1>';
+  $backup_operated_nids = '<br><h1>Processed node ids...</h1>'.theme_item_list($nids);
+  $backup_old_values = '<br><h1>Old values of field "'.$field_name.'"...</h1>Node ID => Old Value'.theme_item_list($old_values);
+  
+  return $important_message.$backup_operated_nids.$backup_old_values;
+}
+
+function utilities_admin_only()
+{
+  global $user;
+  if($user->uid == 1) {
+    return true;
+  }
+  else {
+    return false;
+  }
+}
