@@ -10,7 +10,10 @@ function utilities_menu() {
 
 function utilities_replace_tokens()
 {
-  $node_type = 'store'; // edit: replace 'store'
+  $node = node_load(1);
+  return '<pre>'.print_r($node, true).'</pre>';
+  
+  /*$node_type = 'store'; // edit: replace 'store'
   $field_name = 'field_full_name'; // edit: replace 'field_full_name'
   $result = db_query("SELECT nid FROM node WHERE type = '%s' ", $node_type);
   $nids = array();
@@ -28,7 +31,7 @@ function utilities_replace_tokens()
   $backup_operated_nids = '<br><h1>Processed node ids...</h1>'.theme_item_list($nids);
   $backup_old_values = '<br><h1>Old values of field "'.$field_name.'"...</h1>Node ID => Old Value'.theme_item_list($old_values);
   
-  return $important_message.$backup_operated_nids.$backup_old_values;
+  return $important_message.$backup_operated_nids.$backup_old_values;*/
 }
 
 function utilities_admin_only()
