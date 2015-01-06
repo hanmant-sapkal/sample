@@ -1,0 +1,4 @@
+name = Utilities
+description = Custom utilities
+package = Custom
+core = 6.x
