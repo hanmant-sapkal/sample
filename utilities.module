@@ -1,46 +1,162 @@
 <?php
+
+/**
+ * hook_menu
+ */
 function utilities_menu() {
-  $items['utilities-replace-tokens'] = array(
-    'page callback' => 'utilities_replace_tokens',
+  $items['device-reservation'] = array( // this url is for testing. http://domain/device-reservation
+    'page callback' => 'page_device_reservation',
     'type' => MENU_CALLBACK,
-    'access callback' => 'utilities_admin_only',
+    'access arguments' => array('access content'),
+  );
+  $items['device-reservation-ajax-submit'] = array( 
+    'page callback' => 'page_device_reservation_ajax_submit',
+    'type' => MENU_CALLBACK,
+    'access arguments' => array('access content'),
   );
   return $items;
 }
 
-function utilities_replace_tokens()
+function page_device_reservation()
 {
-  $node = node_load(1);
-  return '<pre>'.print_r($node, true).'</pre>';
-  
-  /*$node_type = 'store'; // edit: replace 'store'
-  $field_name = 'field_full_name'; // edit: replace 'field_full_name'
-  $result = db_query("SELECT nid FROM node WHERE type = '%s' ", $node_type);
-  $nids = array();
-  while ($obj = db_fetch_object ($result)) {
-    $nids[] = $obj->nid;
-  }
-  foreach($nids as $nid) {
-    $node = node_load(1);
-    $old_values[$nid] = $nid.' => '.$node->{$field_name}[0]['value']; // edit: replace 'field_full_name'
-    $node->{$field_name}[0]['value'] = 'New value'; // edit: replace 'New value'
-    node_save($node);
-  }
-  
-  $important_message = '<h1 style="color: red">Do NOT refresh this page until you Copy and save output of this page PERMENENTALY for future reference.</h1>';
-  $backup_operated_nids = '<br><h1>Processed node ids...</h1>'.theme_item_list($nids);
-  $backup_old_values = '<br><h1>Old values of field "'.$field_name.'"...</h1>Node ID => Old Value'.theme_item_list($old_values);
-  
-  return $important_message.$backup_operated_nids.$backup_old_values;*/
+  $device_id = 'D001';
+  $shope_id = 'S001';
+  $form = drupal_get_form('device_reservation', $device_id, $shope_id);
+  return $form;
 }
 
-function utilities_admin_only()
+/**
+ * hook_forms
+ */
+function utilities_forms($form_id, $args)
 {
-  global $user;
-  if($user->uid == 1) {
-    return true;
+  $forms['device_reservation'] = array(
+    'callback' => 'device_reservation_form',
+    'callback arguments' => $args,
+  );
+  return $forms;
+}
+
+function device_reservation_form(&$form_state, $device_id, $shope_id)
+{
+  $form = array();
+  if(context_isset('device_reservation', 'reservation_status_code')) {
+    return $form['empty'] = array(
+      '#type' => 'markup',
+      '#value' => 'empty form to show only reservation message',
+    );
   }
-  else {
-    return false;
+  
+  $firstname = isset($form_state['values']['firstname']) ? $form_state['values']['firstname']: null;
+  $lastname = isset($form_state['values']['lastname']) ? $form_state['values']['lastname']: null;
+  
+  $form['firstname'] = array(
+    '#type' => 'textfield',
+    '#title' => 'First name',
+    '#default_value' => $firstname,
+    '#required' => true,
+  );
+  $form['lastname'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Last name',
+    '#default_value' => $lastname,
+    '#required' => true,
+  );
+  
+  $form['device_id'] = array(
+    '#type' => 'textfield', // make it hidden
+    '#value' => $device_id,
+  );
+  $form['shope_id'] = array(
+    '#type' => 'textfield', // make it hidden
+    '#value' => $shope_id,
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Submit',
+    '#submit' => array('device_reservation_submit'), // If no javascript action.
+    '#ahah' => array(
+      'path' => 'device-reservation-ajax-submit',
+      'wrapper' => 'reservation-form-wrapper', // this wrapper div is located in device-reservation-form.tpl.php
+      'method' => 'replace',
+      'effect' => 'fade',
+    ),
+  );
+  return $form;
+}
+
+/**
+ * hook_validate
+ */
+function device_reservation_validate($form, &$form_state)
+{
+  // your validation if any, goes here
+  // use form_set_error to display error.
+  // if you set error then submit handler will not be called.
+  // for Example:
+    if($form_state['values']['firstname']!= 'Anil') {
+      form_set_error('firstname', 'First name must be "Anil"');
+    }
+  //dpm($form_state);
+}
+
+/**
+ * hook_submit
+ */
+function device_reservation_submit($form, &$form_state)
+{
+  // Now aal-iz-wel, Proceed to reservation
+  $device_id = $form_state['values']['device_id'];
+  $shop_id = $form_state['values']['shope_id'];
+  $reservation_status_code = do_device_reservation($device_id, $shope_id);
+  context_set('device_reservation', 'reservation_status_code', $reservation_status_code);
+  if($reservation_status_code == 'SUCCESS') {
+    drupal_set_message('Reservation SUCCESS message goes here...');
   }
+  if($reservation_status_code == 'FAIL') {
+    drupal_set_message('Reservation FAIL message goes here...', 'error');
+  }
+}
+
+function do_device_reservation($device_id, $shope_id)
+{
+  // Do reservation logic here
+  $reservation_status_code = 'SUCCESS'; // 'FAIL';
+  return $reservation_status_code;
+}
+
+/**
+ * ajax submit
+ */
+function page_device_reservation_ajax_submit()
+{
+  $form_state = array('storage' => NULL, 'submitted' => TRUE);
+  $form_build_id = $_POST['form_build_id'];
+  $form = form_get_cache($form_build_id, $form_state);
+  
+  $args = $form['#parameters'];
+  $form_id = array_shift($args);
+  $form_state['post'] = $form['#post'] = $_POST;
+  
+  $form_state['ahah_submission'] = TRUE;
+  $form['#programmed'] = $form['#redirect'] = FALSE;
+  drupal_process_form($form_id, $form, $form_state);
+  $form = drupal_rebuild_form($form_id, $form_state, $args, $form_build_id);
+  
+  $output = theme('status_messages').drupal_render($form);
+  drupal_json(array('status' => TRUE, 'data' => $output));
+}
+
+/**
+ * hook_theme
+ */
+function utilities_theme($existing, $type, $theme, $path)
+{
+  $themes['device_reservation'] = array(
+        'render element' => 'form',
+        'arguments' => array('form'=>null),
+        'template' => 'device-reservation-form',
+        'path' => drupal_get_path('module', 'utilities'),
+  );
+  return $themes;
 }
